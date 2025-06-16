@@ -8,14 +8,13 @@ import java.sql.Timestamp;
 import java.util.Scanner;
 
 import digital_complain_box.Complaint;
-import util.DatabaseUtil;
 
 public class InsertComplaint {
 
     public void insertComplaint(Complaint complaint) {
         String sql = "INSERT INTO complaints (user_id, dept_id, category_id, title, description, status) VALUES (?, ?, ?, ?, ?, ?)";
 
-        try (Connection conn = DatabaseUtil.getConnection();
+        try (Connection conn = DBConnection.getConnection();
              Scanner sc = new Scanner(System.in)) {
 
             // Get user_id from username
