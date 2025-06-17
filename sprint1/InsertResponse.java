@@ -1,0 +1,135 @@
+package sprint1;
+
+import java.sql.*;
+import java.util.Scanner;
+
+import digital_complain_box.Response;
+
+public class InsertResponse {
+
+    private int fetchId(Connection conn, String query, String param) throws SQLException {
+        try (PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setString(1, param);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        }
+        return -1;
+    }
+    
+    private int fetchComplaintId(Connection conn, String query, int param) throws SQLException {
+        try (PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, param);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("complaint_id");
+                }
+            }
+        }
+        return -1;
+    }
+
+    public void insertResponse(Response response) {
+        String sql = "INSERT INTO responses (complaint_id, user_id, comment) VALUES (?, ?, ?)";
+
+        try (Connection conn = DBConnection.getConnection();
+             Scanner sc = new Scanner(System.in)) {
+
+        	System.out.print("Enter username: ");
+            String username = sc.nextLine();
+            int userId = fetchId(conn, "SELECT user_id FROM users WHERE username = ?", username);
+            if (userId == -1) {
+                System.out.println("User not found!");
+                return;
+            }
+
+            int complaintId = fetchComplaintId(conn, "SELECT complaint_id FROM complaints WHERE user_id = ?", userId);
+            if (complaintId == -1) {
+                System.out.println("Department not found!");
+                return;
+            }
+
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setInt(1, complaintId);
+                stmt.setInt(2, userId);
+                stmt.setString(3, response.getComment());
+                stmt.executeUpdate();
+                System.out.println("Response added successfully!");
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void readResponses() {
+        String sql = "SELECT * FROM responses";
+
+        try (Connection conn = DBConnection.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            System.out.println("\n=== Responses List ===");
+            while (rs.next()) {
+                System.out.println("Response ID: " + rs.getInt("response_id"));
+                System.out.println("Complaint ID: " + rs.getInt("complaint_id"));
+                System.out.println("User ID: " + rs.getInt("user_id"));
+                System.out.println("Comment: " + rs.getString("comment"));
+                System.out.println("Created At: " + rs.getTimestamp("created_at"));
+                System.out.println("----------------------------");
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void main(String[] args) {
+        InsertResponse app = new InsertResponse();
+        Scanner sc = new Scanner(System.in);
+
+        while (true) {
+            try {
+                System.out.println("\n--- Response CRUD Menu ---");
+                System.out.println("1. Insert Response");
+                System.out.println("2. Read All Responses");
+                System.out.println("3. Exit");
+                System.out.print("Choose option: ");
+
+                if (!sc.hasNextInt()) {
+                    System.out.println("Invalid input. Please enter a number.");
+                    sc.next(); // skip invalid
+                    continue;
+                }
+
+                int choice = sc.nextInt();
+                sc.nextLine();  // clear buffer
+
+                switch (choice) {
+                    case 1:
+                    	Timestamp now = new Timestamp(System.currentTimeMillis());
+                        Response response = new Response(
+                            null, null, null, "Fixed", now
+                        );
+                        app.insertResponse(response);
+                        break;
+                    case 2:
+                        app.readResponses();
+                        break;
+                    case 3:
+                        System.out.println("Exiting...");
+                        sc.close();
+                        return;
+                    default:
+                        System.out.println("Invalid option. Try again.");
+                }
+
+            } catch (Exception e) {
+                System.out.println("Error: " + e.getMessage());
+                sc.nextLine(); // recover from scanner error
+            }
+        }
+    }
+}
