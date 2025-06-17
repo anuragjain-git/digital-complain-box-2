@@ -40,12 +40,26 @@ public class InsertComplaint {
                 return;
             }
 
-            System.out.print("Enter category name: ");
+            System.out.print("Select a category name: ");
             String categoryname = sc.nextLine();
             int categoryId = fetchId(conn, "SELECT category_id FROM categories WHERE category_name = ?", categoryname);
             if (categoryId == -1) {
                 System.out.println("Category not found!");
                 return;
+            }
+            
+            String checkDuplicateQuery = "SELECT 1 FROM complaints WHERE user_id = ? AND dept_id = ? AND category_id = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(checkDuplicateQuery)) {
+                stmt.setInt(1, userId);
+                stmt.setInt(2, deptId);
+                stmt.setInt(3, categoryId);
+
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if(rs.next()) { // returns true if a matching row exists
+                    	System.out.println("Complain already exist (username, deptname, categoryname are same)");
+                    	return;
+                    }
+                }
             }
 
 //            System.out.print("Enter complaint title: ");
@@ -152,6 +166,7 @@ public class InsertComplaint {
 	
 	            int choice = sc.nextInt();
 	            sc.nextLine();  
+	            
 	            switch (choice) {
 	                case 1:
 	                	// Create complaint with title, description, and timestamps only
