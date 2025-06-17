@@ -1,0 +1,16 @@
+package digital_complain_box;
+
+import java.sql.*;
+
+public class Response extends BaseEntity{
+    private String comment;
+
+    public Response(String comment, Timestamp createdAt) {
+    	super(createdAt);
+        this.comment = comment;
+    }
+
+    public String getComment() {
+        return comment;
+    }
+}
