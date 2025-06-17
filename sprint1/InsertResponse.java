@@ -30,6 +30,30 @@ public class InsertResponse {
         }
         return -1;
     }
+    
+    private String fetchUserRole(Connection conn, String query, String param) throws SQLException {
+        try (PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setString(1, param);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("role");
+                }
+            }
+        }
+        return "";
+    }
+    
+    private String fetchUserPass(Connection conn, String query, String param) throws SQLException {
+        try (PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setString(1, param);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("password_hash");
+                }
+            }
+        }
+        return "";
+    }
 
     public void insertResponse(Response response) {
         String sql = "INSERT INTO responses (complaint_id, user_id, comment) VALUES (?, ?, ?)";
@@ -42,6 +66,20 @@ public class InsertResponse {
             int userId = fetchId(conn, "SELECT user_id FROM users WHERE username = ?", username);
             if (userId == -1) {
                 System.out.println("User not found!");
+                return;
+            }
+            
+            String userRole = fetchUserRole(conn, "SELECT role FROM users WHERE username = ?", username);
+            if (userRole.toLowerCase() != "admin") {
+                System.out.println("User is not an ADMIN!");
+                return;
+            }
+            
+            System.out.print("Enter Password: ");
+            String password = sc.nextLine();
+            String userPass = fetchUserPass(conn, "SELECT password_hash FROM users WHERE username = ?", username);
+            if (userPass != password) {
+                System.out.println("Wrong Password");
                 return;
             }
 
