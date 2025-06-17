@@ -1,9 +1,10 @@
 package sprint1;
 
 import java.sql.*;
+import java.util.NoSuchElementException;
 import java.util.Scanner;
 
-import digital_complain_box.Complaint;
+import sprint1.Complaint;
 
 public class InsertComplaint {
 
@@ -47,7 +48,8 @@ public class InsertComplaint {
                 System.out.println("Category not found!");
                 return;
             }
-            
+
+            // Check for duplicate complaint
             String checkDuplicateQuery = "SELECT 1 FROM complaints WHERE user_id = ? AND dept_id = ? AND category_id = ?";
             try (PreparedStatement stmt = conn.prepareStatement(checkDuplicateQuery)) {
                 stmt.setInt(1, userId);
@@ -55,18 +57,14 @@ public class InsertComplaint {
                 stmt.setInt(3, categoryId);
 
                 try (ResultSet rs = stmt.executeQuery()) {
-                    if(rs.next()) { // returns true if a matching row exists
-                    	System.out.println("Complain already exist (username, deptname, categoryname are same)");
-                    	return;
+                    if (rs.next()) {
+                        System.out.println("Complaint already exists for this username, department, and category.");
+                        return;
                     }
                 }
             }
 
-//            System.out.print("Enter complaint title: ");
-//            String title = sc.nextLine();
-//            System.out.print("Enter description: ");
-//            String description = sc.nextLine();
-
+            // Insert complaint
             PreparedStatement stmt = conn.prepareStatement(sql);
             stmt.setInt(1, userId);
             stmt.setInt(2, deptId);
@@ -108,7 +106,9 @@ public class InsertComplaint {
              Scanner sc = new Scanner(System.in)) {
 
             System.out.print("Enter Complaint ID to update: ");
-            int id = sc.nextInt(); sc.nextLine();
+            int id = sc.nextInt();
+            sc.nextLine(); // Flush leftover newline
+
             System.out.print("Enter new status (e.g. OPEN, Resolved, Closed): ");
             String status = sc.nextLine();
 
@@ -149,46 +149,57 @@ public class InsertComplaint {
         Scanner sc = new Scanner(System.in);
 
         while (true) {
-        	try {
-	            System.out.println("\n--- Complaint CRUD Menu ---");
-	            System.out.println("1. Insert Complaint");
-	            System.out.println("2. Read All Complaints");
-	            System.out.println("3. Update Complaint Status");
-	            System.out.println("4. Delete Complaint");
-	            System.out.println("5. Exit");
-	            System.out.print("Choose option: ");
-	           
-	            if (!sc.hasNextInt()) {
-	                System.out.println("Invalid input. Please enter a number.");
-	                sc.next(); // skip invalid
-	                continue;
-	            }
-	
-	            int choice = sc.nextInt();
-	            sc.nextLine();  
-	            
-	            switch (choice) {
-	                case 1:
-	                	// Create complaint with title, description, and timestamps only
-	                    Timestamp now = new Timestamp(System.currentTimeMillis());
-	                    Complaint complaint = new Complaint(
-	                        null, null, null, null,
-	                        "Database not working",
-	                        "Database connectivity issue since morning.",
-	                        now, now
-	                    );
-	                	app.insertComplaint(complaint); 
-	                	break;
-	                case 2: app.readComplaints(); break;
-	                case 3: app.updateComplaintStatus(); break;
-	                case 4: app.deleteComplaint(); break;
-	                case 5: System.out.println("Exiting..."); sc.close(); return;
-	                default: System.out.println("Invalid option. Try again.");
-	            }
-        	}
-            catch (Exception e) {
+            try {
+                System.out.println("\n--- Complaint CRUD Menu ---");
+                System.out.println("1. Insert Complaint");
+                System.out.println("2. Read All Complaints");
+                System.out.println("3. Update Complaint Status");
+                System.out.println("4. Delete Complaint");
+                System.out.println("5. Exit");
+                System.out.print("Choose option: ");
+
+                if (!sc.hasNextInt()) {
+                    System.out.println("Invalid input. Please enter a number.");
+                    sc.next(); // Skip invalid
+                    continue;
+                }
+
+                int choice = sc.nextInt();
+                sc.nextLine(); // flush newline
+
+                switch (choice) {
+                    case 1:
+                        Timestamp now = new Timestamp(System.currentTimeMillis());
+                        Complaint complaint = new Complaint(
+                                null, null, null, null,
+                                "Database not working",
+                                "Database connectivity issue since morning.",
+                                now, now
+                        );
+                        app.insertComplaint(complaint);
+                        break;
+                    case 2:
+                        app.readComplaints();
+                        break;
+                    case 3:
+                        app.updateComplaintStatus();
+                        break;
+                    case 4:
+                        app.deleteComplaint();
+                        break;
+                    case 5:
+                        System.out.println("Exiting...");
+                        return; 
+                    default:
+                        System.out.println("Invalid option. Try again.");
+                }
+
+            } catch (NoSuchElementException e) {
+                System.out.println("No more input. Exiting safely...");
+                break;
+            } catch (Exception e) {
                 System.out.println("Error: " + e.getMessage());
-                sc.nextLine(); // recover from scanner error
+                if (sc.hasNextLine()) sc.nextLine(); // Recover from bad input
             }
         }
     }
