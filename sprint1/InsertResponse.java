@@ -19,9 +19,11 @@ public class InsertResponse {
         return -1;
     }
     
-    private int fetchComplaintId(Connection conn, String query, int param) throws SQLException {
+    private int fetchComplaintId(Connection conn, String query, int param1, int param2, int param3) throws SQLException {
         try (PreparedStatement stmt = conn.prepareStatement(query)) {
-            stmt.setInt(1, param);
+            stmt.setInt(1, param1);
+            stmt.setInt(2, param2);
+            stmt.setInt(3, param3);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     return rs.getInt("complaint_id");
@@ -61,16 +63,17 @@ public class InsertResponse {
         try (Connection conn = DBConnection.getConnection();
              Scanner sc = new Scanner(System.in)) {
 
-        	System.out.print("Enter username: ");
+        	System.out.print("Enter username(ADMIN): ");
             String username = sc.nextLine();
             int userId = fetchId(conn, "SELECT user_id FROM users WHERE username = ?", username);
             if (userId == -1) {
-                System.out.println("User not found!");
+                System.out.println("ADMIN user not found!");
                 return;
             }
             
             String userRole = fetchUserRole(conn, "SELECT role FROM users WHERE username = ?", username);
-            if (userRole.toLowerCase() != "admin") {
+            System.out.println(userRole.toLowerCase());
+            if (!userRole.toLowerCase().equals("admin")) {
                 System.out.println("User is not an ADMIN!");
                 return;
             }
@@ -78,12 +81,36 @@ public class InsertResponse {
             System.out.print("Enter Password: ");
             String password = sc.nextLine();
             String userPass = fetchUserPass(conn, "SELECT password_hash FROM users WHERE username = ?", username);
-            if (userPass != password) {
+            if (!userPass.equals(password)) {
                 System.out.println("Wrong Password");
                 return;
             }
+            
+            System.out.print("Enter username(USER): ");
+            String usernameUser = sc.nextLine();
+            int userIdUser = fetchId(conn, "SELECT user_id FROM users WHERE username = ?", usernameUser);
+            if (userIdUser == -1) {
+                System.out.println("User not found!");
+                return;
+            }
+            
+            System.out.print("Enter Department name: ");
+            String deptName = sc.nextLine();
+            int deptId = fetchId(conn, "SELECT dept_id FROM departments WHERE dept_name = ?", deptName);
+            if (deptId == -1) {
+                System.out.println("This Department does not exist");
+                return;
+            }
+            
+            System.out.print("Enter Category name: ");
+            String categoryName = sc.nextLine();
+            int categoryId = fetchId(conn, "SELECT category_id FROM categories WHERE category_name = ?", categoryName);
+            if (categoryId == -1) {
+                System.out.println("This Category does not exist");
+                return;
+            }
 
-            int complaintId = fetchComplaintId(conn, "SELECT complaint_id FROM complaints WHERE user_id = ?", userId);
+            int complaintId = fetchComplaintId(conn, "SELECT complaint_id FROM complaints WHERE user_id = ? AND dept_id = ? AND category_id = ?", userIdUser, deptId, categoryId);
             if (complaintId == -1) {
                 System.out.println("Department not found!");
                 return;
@@ -91,7 +118,7 @@ public class InsertResponse {
 
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setInt(1, complaintId);
-                stmt.setInt(2, userId);
+                stmt.setInt(2, userIdUser);
                 stmt.setString(3, response.getComment());
                 stmt.executeUpdate();
                 System.out.println("Response added successfully!");
@@ -166,7 +193,6 @@ public class InsertResponse {
 
             } catch (Exception e) {
                 System.out.println("Error: " + e.getMessage());
-                sc.nextLine(); // recover from scanner error
             }
         }
     }
