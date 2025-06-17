@@ -1,167 +1,128 @@
 package sprint1;
 
-import java.sql.*;
-import java.util.Scanner;
+import java.sql.SQLException;
+import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class InsertComplaint {
 
-    private int fetchId(Connection conn, String query, String param) throws SQLException {
-        try (PreparedStatement stmt = conn.prepareStatement(query)) {
-            stmt.setString(1, param);
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getInt(1);
-                }
-            }
-        }
-        return -1;
-    }
+    /* ---------- shared Scanner so we don’t close System.in ---------- */
+    private static final Scanner sc = new Scanner(System.in);
 
+    /* ---------- 1. manual single insert ---------- */
     public void insertComplaint() {
-        String sql = "INSERT INTO complaints (user_id, dept_id, category_id, title, description, status) VALUES (?, ?, ?, ?, ?, ?)";
-        try (Connection conn = DBConnection.getConnection();
-             Scanner sc = new Scanner(System.in)) {
+        ComplaintDao dao = new ComplaintDao();
 
-            System.out.print("Enter username: ");
+        try {
+            System.out.print("Username: ");
             String username = sc.nextLine();
-            int userId = fetchId(conn, "SELECT user_id FROM users WHERE username = ?", username);
+            int userId = dao.fetchId(
+                    "SELECT user_id FROM users WHERE username=?", username);
             if (userId == -1) {
-                System.out.println("User not found!");
+                System.out.println("❌ User not found!");
                 return;
             }
 
-            System.out.print("Enter department name: ");
-            String deptname = sc.nextLine();
-            int deptId = fetchId(conn, "SELECT dept_id FROM departments WHERE dept_name = ?", deptname);
+            System.out.print("Department name: ");
+            String dept = sc.nextLine();
+            int deptId = dao.fetchId(
+                    "SELECT dept_id FROM departments WHERE dept_name=?", dept);
             if (deptId == -1) {
-                System.out.println("Department not found!");
+                System.out.println("❌ Department not found!");
                 return;
             }
 
-            System.out.print("Enter category name: ");
-            String categoryname = sc.nextLine();
-            int categoryId = fetchId(conn, "SELECT category_id FROM categories WHERE category_name = ?", categoryname);
-            if (categoryId == -1) {
-                System.out.println("Category not found!");
+            System.out.print("Category name: ");
+            String cat = sc.nextLine();
+            int catId = dao.fetchId(
+                    "SELECT category_id FROM categories WHERE category_name=?", cat);
+            if (catId == -1) {
+                System.out.println("❌ Category not found!");
                 return;
             }
 
-            System.out.print("Enter complaint title: ");
+            System.out.print("Title: ");
             String title = sc.nextLine();
-            System.out.print("Enter description: ");
-            String description = sc.nextLine();
+            System.out.print("Description: ");
+            String desc = sc.nextLine();
 
-            PreparedStatement stmt = conn.prepareStatement(sql);
-            stmt.setInt(1, userId);
-            stmt.setInt(2, deptId);
-            stmt.setInt(3, categoryId);
-            stmt.setString(4, title);
-            stmt.setString(5, description);
-            stmt.setString(6, "OPEN");
-
-            stmt.executeUpdate();
-            System.out.println("Complaint inserted successfully!");
+            int id = dao.insert(userId, deptId, catId, title, desc);
+            System.out.println("✅ Inserted with ID: " + id);
 
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
-    public void readComplaints() {
-        String sql = "SELECT * FROM complaints";
-        try (Connection conn = DBConnection.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+    /* ---------- 2. multi‑thread simulation ---------- */
+    public void simulateConcurrentSubmissions() {
+        try {
+            ComplaintDao dao = new ComplaintDao();
+            List<Integer> userIds = dao.listIds("users", "user_id");
+            List<Integer> deptIds = dao.listIds("departments", "dept_id");
+            List<Integer> catIds = dao.listIds("categories", "category_id");
 
-            System.out.println("\n=== Complaints List ===");
-            while (rs.next()) {
-                System.out.println("ID: " + rs.getInt("complaint_id"));
-                System.out.println("Title: " + rs.getString("title"));
-                System.out.println("Status: " + rs.getString("status"));
-                System.out.println("Created At: " + rs.getTimestamp("created_at"));
-                System.out.println("----------------------------");
+            if (userIds.isEmpty() || deptIds.isEmpty() || catIds.isEmpty()) {
+                System.out.println("⚠️  Insert data into users/departments/categories first!");
+                return;
             }
 
-        } catch (SQLException e) {
+            List<Thread> threads = new ArrayList<>();
+
+            for (int i = 1; i <= 5; i++) {
+                int userId = pick(userIds);
+                int deptId = pick(deptIds);
+                int catId = pick(catIds);
+
+                Thread t = new ComplaintSubmissionThread(
+                        userId, deptId, catId,
+                        "Thread Title " + i,
+                        "Threaded Description " + i);
+                t.setName("UserThread-" + i);
+                t.start();
+                threads.add(t);
+            }
+
+            /* wait until every thread finishes */
+            for (Thread t : threads) t.join();
+
+            System.out.println("✅ All simulated submissions finished.");
+
+        } catch (SQLException | InterruptedException e) {
             e.printStackTrace();
         }
     }
 
-    public void updateComplaintStatus() {
-        try (Connection conn = DBConnection.getConnection();
-             Scanner sc = new Scanner(System.in)) {
-
-            System.out.print("Enter Complaint ID to update: ");
-            int id = sc.nextInt(); sc.nextLine();
-            System.out.print("Enter new status (e.g. OPEN, Resolved, Closed): ");
-            String status = sc.nextLine();
-
-            String sql = "UPDATE complaints SET status = ? WHERE complaint_id = ?";
-            PreparedStatement stmt = conn.prepareStatement(sql);
-            stmt.setString(1, status);
-            stmt.setInt(2, id);
-
-            int rows = stmt.executeUpdate();
-            System.out.println("Rows updated: " + rows);
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+    private static int pick(List<Integer> list) {
+        return list.get(ThreadLocalRandom.current().nextInt(list.size()));
     }
 
-    public void deleteComplaint() {
-        try (Connection conn = DBConnection.getConnection();
-             Scanner sc = new Scanner(System.in)) {
-
-            System.out.print("Enter Complaint ID to delete: ");
-            int id = sc.nextInt();
-
-            String sql = "DELETE FROM complaints WHERE complaint_id = ?";
-            PreparedStatement stmt = conn.prepareStatement(sql);
-            stmt.setInt(1, id);
-
-            int rows = stmt.executeUpdate();
-            System.out.println("Rows deleted: " + rows);
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
+    /* ---------- 3. CLI menu ---------- */
     public static void main(String[] args) {
         InsertComplaint app = new InsertComplaint();
-        Scanner sc = new Scanner(System.in);
 
         while (true) {
-        	try {
-            System.out.println("\n--- Complaint CRUD Menu ---");
-            System.out.println("1. Insert Complaint");
-            System.out.println("2. Read All Complaints");
-            System.out.println("3. Update Complaint Status");
-            System.out.println("4. Delete Complaint");
-            System.out.println("5. Exit");
+            System.out.println("\n--- Complaint CLI ---");
+            System.out.println("1. Insert Complaint (manual)");
+            System.out.println("2. Simulate Concurrent Complaints");
+            System.out.println("3. Exit");
             System.out.print("Choose option: ");
-           
+
             if (!sc.hasNextInt()) {
-                System.out.println("Invalid input. Please enter a number.");
-                sc.next(); // skip invalid
+                sc.next();
                 continue;
             }
-
             int choice = sc.nextInt();
-            sc.nextLine();  
+            sc.nextLine();   // clear newline
+
             switch (choice) {
-                case 1: app.insertComplaint(); break;
-                case 2: app.readComplaints(); break;
-                case 3: app.updateComplaintStatus(); break;
-                case 4: app.deleteComplaint(); break;
-                case 5: System.out.println("Exiting..."); sc.close(); return;
-                default: System.out.println("Invalid option. Try again.");
-            }
-        	}
-            catch (Exception e) {
-                System.out.println("Error: " + e.getMessage());
-                sc.nextLine(); // recover from scanner error
+                case 1 -> app.insertComplaint();
+                case 2 -> app.simulateConcurrentSubmissions();
+                case 3 -> {
+                    System.out.println("👋 Bye!");
+                    return;
+                }
+                default -> System.out.println("⚠️ Invalid choice.");
             }
         }
     }
