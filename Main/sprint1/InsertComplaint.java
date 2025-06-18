@@ -4,9 +4,48 @@ import java.sql.*;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
 
+import digital_complain_box.CollectionsStore;
 import digital_complain_box.Complaint;
 
 public class InsertComplaint {
+	
+	public void printComplaintList() {
+	    CollectionsStore.complaintList.clear(); // Avoid duplicates on multiple calls
+
+	    String sql = "SELECT * FROM complaints";
+	    try (Connection conn = DBConnection.getConnection();
+	         Statement stmt = conn.createStatement();
+	         ResultSet rs = stmt.executeQuery(sql)) {
+
+	        while (rs.next()) {
+	            Complaint c = new Complaint(
+	                rs.getString("title"),
+	                rs.getString("description"),
+	                rs.getTimestamp("created_at"),
+	                rs.getTimestamp("updated_at")
+	            );
+	            CollectionsStore.complaintList.add(c);
+	        }
+
+	    } catch (SQLException e) {
+	        e.printStackTrace();
+	    }
+
+	    System.out.println("\n--- Complaints in Memory (Loaded from DB) ---");
+	    if (CollectionsStore.complaintList.isEmpty()) {
+	        System.out.println("No complaints found.");
+	    } else {
+	        for (Complaint c : CollectionsStore.complaintList) {
+	            System.out.println("Title: " + c.getTitle());
+	            System.out.println("Description: " + c.getDescription());
+	            System.out.println("Status: " + c.getStatus());
+	            System.out.println("Created At: " + c.getCreatedAt());
+	            System.out.println("Updated At: " + c.getUpdatedAt());
+	            System.out.println("------------------------");
+	        }
+	    }
+	}
+
 
     private int fetchId(Connection conn, String query, String param) throws SQLException {
         try (PreparedStatement stmt = conn.prepareStatement(query)) {
@@ -21,7 +60,7 @@ public class InsertComplaint {
     }
 
     public void insertComplaint(Complaint complaint) {
-        String sql = "INSERT INTO complaints (user_id, dept_id, category_id, title, description, status) VALUES (?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO complaints (user_id, dept_id, category_id, title, description) VALUES (?, ?, ?, ?, ?)";
         try (Connection conn = DBConnection.getConnection();
              Scanner sc = new Scanner(System.in)) {
 
@@ -71,7 +110,6 @@ public class InsertComplaint {
             stmt.setInt(3, categoryId);
             stmt.setString(4, complaint.getTitle());
             stmt.setString(5, complaint.getDescription());
-            stmt.setString(6, complaint.getStatus());
 
             stmt.executeUpdate();
             System.out.println("Complaint inserted successfully!");
@@ -156,6 +194,7 @@ public class InsertComplaint {
                 System.out.println("3. Update Complaint Status");
                 System.out.println("4. Delete Complaint");
                 System.out.println("5. Exit");
+                System.out.println("6. Print Complain List");
                 System.out.print("Choose option: ");
 
                 if (!sc.hasNextInt()) {
@@ -169,15 +208,13 @@ public class InsertComplaint {
 
                 switch (choice) {
                     case 1:
+                    	System.out.print("Enter title: ");
+                    	String title = sc.nextLine();
                     	System.out.print("Enter description: ");
                     	String description = sc.nextLine();
-                    	System.out.print("Enter status: ");
-                    	String status = sc.nextLine();
-                    	Timestamp now = new Timestamp(System.currentTimeMillis());
                         Complaint complaint = new Complaint(
-                        		description,
-                        		status,
-                                now, now
+                        		title,
+                        		description
                         );
                         app.insertComplaint(complaint);
                         break;
@@ -193,6 +230,9 @@ public class InsertComplaint {
                     case 5:
                         System.out.println("Exiting...");
                         return; 
+                    case 6:
+                        app.printComplaintList();
+                        break;
                     default:
                         System.out.println("Invalid option. Try again.");
                 }
