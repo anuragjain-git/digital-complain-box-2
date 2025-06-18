@@ -194,18 +194,71 @@ public class InsertResponse {
             e.printStackTrace();
         }
     }
+    
+    public void updateResponse() {
+        try (Connection conn = DBConnection.getConnection();
+             Scanner sc = new Scanner(System.in)) {
+
+            System.out.print("Enter Response ID to update: ");
+            int responseId = Integer.parseInt(sc.nextLine());
+
+            System.out.print("Enter new comment: ");
+            String newComment = sc.nextLine();
+
+            String sql = "UPDATE responses SET comment = ? WHERE response_id = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, newComment);
+                stmt.setInt(2, responseId);
+
+                int rows = stmt.executeUpdate();
+                if (rows > 0) {
+                    System.out.println("Response updated successfully!");
+                } else {
+                    System.out.println("No response found with the given ID.");
+                }
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    public void deleteResponse() {
+        try (Connection conn = DBConnection.getConnection();
+             Scanner sc = new Scanner(System.in)) {
+
+            System.out.print("Enter Response ID to delete: ");
+            int responseId = Integer.parseInt(sc.nextLine());
+
+            String sql = "DELETE FROM responses WHERE response_id = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setInt(1, responseId);
+
+                int rows = stmt.executeUpdate();
+                if (rows > 0) {
+                    System.out.println("Response deleted successfully!");
+                } else {
+                    System.out.println("No response found with the given ID.");
+                }
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
 
     public static void main(String[] args) {
         InsertResponse app = new InsertResponse();
         Scanner sc = new Scanner(System.in);
 
         while (true) {
-            System.out.println("\n--- Response CRUD Menu ---");
-            System.out.println("1. Insert Response");
-            System.out.println("2. Read All Responses");
-            System.out.println("3. Exit");
-            System.out.println("4. Print Response List");
-            System.out.print("Choose option: ");
+        	System.out.println("1. Insert Response");
+        	System.out.println("2. Read All Responses");
+        	System.out.println("3. Update Response");
+        	System.out.println("4. Delete Response");
+        	System.out.println("5. Print Response List");
+        	System.out.println("6. Exit");
+        	System.out.print("Choose option: ");
 
             String input = sc.nextLine();
             int choice;
@@ -217,25 +270,32 @@ public class InsertResponse {
             }
 
             switch (choice) {
-                case 1:
-                	System.out.print("Enter comment: ");
-                	String comment = sc.nextLine();
-                    Response response = new Response(comment);
-                    app.insertResponse(response);
-                    break;
-                case 2:
-                    app.readResponses();
-                    break;
-                case 3:
-                    System.out.println("Exiting...");
-                    sc.close();
-                    return;
-                case 4:
-                    app.printResponseList();
-                    break;
-                default:
-                    System.out.println("Invalid option. Try again.");
-            }
+            case 1:
+                System.out.print("Enter comment: ");
+                String comment = sc.nextLine();
+                Response response = new Response(comment);
+                app.insertResponse(response);
+                break;
+            case 2:
+                app.readResponses();
+                break;
+            case 3:
+                app.updateResponse();
+                break;
+            case 4:
+                app.deleteResponse();
+                break;
+            case 5:
+                app.printResponseList();
+                break;
+            case 6:
+                System.out.println("Exiting...");
+                sc.close();
+                return;
+            default:
+                System.out.println("Invalid option. Try again.");
+        }
+
         }
     }
 }
