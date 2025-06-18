@@ -1,21 +1,31 @@
 package digital_complain_box;
 
-import java.sql.*;
+import java.sql.Timestamp;
 
-public class Complaint extends BaseEntity{
+public class Complaint extends BaseEntity {
     private String title;
     private String description;
     private String status;
     private Timestamp updatedAt;
 
-    public Complaint(String title, String description, Timestamp createdAt, Timestamp updatedAt) {
-    	super(createdAt);
+    // Constructor for creating a new complaint (createdAt = now)
+    public Complaint(String title, String description) {
+        super();  // sets createdAt to now
         this.title = title;
         this.description = description;
         this.status = "OPEN";
-        this.setUpdatedAt(updatedAt);
+        this.updatedAt = new Timestamp(System.currentTimeMillis());
     }
 
+    // Constructor for loading complaint from DB
+    public Complaint(String title, String description, Timestamp createdAt, Timestamp updatedAt) {
+        super(createdAt);
+        this.title = title;
+        this.description = description;
+        this.updatedAt = updatedAt;
+    }
+
+    // Getters
     public String getTitle() {
         return title;
     }
@@ -28,11 +38,16 @@ public class Complaint extends BaseEntity{
         return status;
     }
 
-	public Timestamp getUpdatedAt() {
-		return updatedAt;
-	}
+    public Timestamp getUpdatedAt() {
+        return updatedAt;
+    }
 
-	public void setUpdatedAt(Timestamp updatedAt) {
-		this.updatedAt = updatedAt;
-	}
+    // Setters
+    public void setUpdatedAt(Timestamp updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
 }
