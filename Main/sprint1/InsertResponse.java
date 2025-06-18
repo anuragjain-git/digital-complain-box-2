@@ -3,9 +3,44 @@ package sprint1;
 import java.sql.*;
 import java.util.Scanner;
 
+import digital_complain_box.CollectionsStore;
 import digital_complain_box.Response;
 
 public class InsertResponse {
+	
+	public void printResponseList() {
+	    CollectionsStore.responseList.clear(); // Clear to prevent duplicates
+
+	    String sql = "SELECT * FROM responses";
+
+	    try (Connection conn = DBConnection.getConnection();
+	         Statement stmt = conn.createStatement();
+	         ResultSet rs = stmt.executeQuery(sql)) {
+
+	        while (rs.next()) {
+	            Response response = new Response(
+	                rs.getString("comment"),
+	                rs.getTimestamp("created_at")
+	            );
+	            CollectionsStore.responseList.add(response);
+	        }
+
+	    } catch (SQLException e) {
+	        e.printStackTrace();
+	    }
+
+	    System.out.println("\n--- Responses in Memory (Loaded from DB) ---");
+	    if (CollectionsStore.responseList.isEmpty()) {
+	        System.out.println("No responses found.");
+	    } else {
+	        for (Response r : CollectionsStore.responseList) {
+	            System.out.println("Comment: " + r.getComment());
+	            System.out.println("Created At: " + r.getCreatedAt());
+	            System.out.println("------------------------");
+	        }
+	    }
+	}
+
 
     private int fetchId(Connection conn, String query, String param) throws SQLException {
         try (PreparedStatement stmt = conn.prepareStatement(query)) {
@@ -57,7 +92,8 @@ public class InsertResponse {
         return "";
     }
 
-    public void insertResponse(Response response, Scanner sc) {
+    public void insertResponse(Response response) {
+    	Scanner sc = new Scanner(System.in);
         String sql = "INSERT INTO responses (complaint_id, user_id, comment) VALUES (?, ?, ?)";
 
         try (Connection conn = DBConnection.getConnection()) {
@@ -125,10 +161,10 @@ public class InsertResponse {
 
                 String updateStatus = "UPDATE complaints SET status = ? WHERE complaint_id = ?";
                 try (PreparedStatement statusStmt = conn.prepareStatement(updateStatus)) {
-                    statusStmt.setString(1, "Responded");
+                    statusStmt.setString(1, "In Progress");
                     statusStmt.setInt(2, complaintId);
                     statusStmt.executeUpdate();
-                    System.out.println("Complaint status updated to 'Responded'.");
+                    System.out.println("Complaint status updated to 'In Progress'.");
                 }
             }
 
@@ -168,6 +204,7 @@ public class InsertResponse {
             System.out.println("1. Insert Response");
             System.out.println("2. Read All Responses");
             System.out.println("3. Exit");
+            System.out.println("4. Print Response List");
             System.out.print("Choose option: ");
 
             String input = sc.nextLine();
@@ -183,9 +220,8 @@ public class InsertResponse {
                 case 1:
                 	System.out.print("Enter comment: ");
                 	String comment = sc.nextLine();
-                	Timestamp now = new Timestamp(System.currentTimeMillis());
-                    Response response = new Response(comment, now);
-                    app.insertResponse(response, sc);
+                    Response response = new Response(comment);
+                    app.insertResponse(response);
                     break;
                 case 2:
                     app.readResponses();
@@ -194,6 +230,9 @@ public class InsertResponse {
                     System.out.println("Exiting...");
                     sc.close();
                     return;
+                case 4:
+                    app.printResponseList();
+                    break;
                 default:
                     System.out.println("Invalid option. Try again.");
             }
