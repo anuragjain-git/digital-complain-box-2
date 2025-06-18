@@ -3,9 +3,48 @@ package sprint1;
 import java.sql.*;
 import java.util.Scanner;
 
+import digital_complain_box.CollectionsStore;
 import digital_complain_box.User;
 
 public class InsertUser {
+	
+	public void printUserList() {
+	    CollectionsStore.userList.clear(); // Avoid duplicates on multiple calls
+
+	    String sql = "SELECT * FROM users";
+	    try (Connection conn = DBConnection.getConnection();
+	         Statement stmt = conn.createStatement();
+	         ResultSet rs = stmt.executeQuery(sql)) {
+
+	        while (rs.next()) {
+	            User u = new User(
+	                rs.getString("username"),
+	                rs.getString("password_hash"),
+	                rs.getString("role"),
+	                rs.getString("email"),
+	                rs.getTimestamp("created_at")
+	            );
+	            CollectionsStore.userList.add(u);
+	        }
+
+	    } catch (SQLException e) {
+	        e.printStackTrace();
+	    }
+
+	    System.out.println("\n--- Users in Memory (Loaded from DB) ---");
+	    if (CollectionsStore.userList.isEmpty()) {
+	        System.out.println("No users found.");
+	    } else {
+	        for (User user : CollectionsStore.userList) {
+	            System.out.println("Username: " + user.getUsername());
+	            System.out.println("Email: " + user.getEmail());
+	            System.out.println("Role: " + user.getRole());
+	            System.out.println("Created At: " + user.getCreatedAt());
+	            System.out.println("------------------------");
+	        }
+	    }
+	}
+	    
 
     public void insertUser(User user) {
         String sql = "INSERT INTO users (username, password_hash, role, email) VALUES (?, ?, ?, ?)";
@@ -110,6 +149,7 @@ public class InsertUser {
                 System.out.println("3. Update User");
                 System.out.println("4. Delete User");
                 System.out.println("5. Exit");
+                System.out.println("6. Print User List");
                 System.out.print("Choose option: ");
 
                 if (!sc.hasNextInt()) {
@@ -130,8 +170,8 @@ public class InsertUser {
                     	String role = sc.nextLine();
                     	System.out.print("Enter email: ");
                     	String email = sc.nextLine();
-                    	User user1 = new User(username, password, role, email, new Timestamp(System.currentTimeMillis()));
-                    	app.insertUser(user1); 
+                    	User user = new User(username, password, role, email);
+                    	app.insertUser(user);
                     	break;
                     case 2: app.readUsers(); break;
                     case 3: app.updateUser(); break;
@@ -140,6 +180,9 @@ public class InsertUser {
                         System.out.println("Exiting...");
                         sc.close();
                         return;
+                    case 6:
+                        app.printUserList();
+                        break;
                     default:
                         System.out.println("Invalid option. Try again.");
                 }
