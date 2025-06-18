@@ -8,14 +8,21 @@ public class User extends BaseEntity{
     private String role;
     private String email;
 
-    public User(String username, String passwordHash, String role, String email, Timestamp createdAt) {
-    	super(createdAt);
+    public User(String username, String passwordHash, String role, String email) {
+        super(); // assigns current timestamp
         this.username = username;
         this.passwordHash = passwordHash;
         this.role = role;
         this.email = email;
     }
 
+    public User(String username, String passwordHash, String role, String email, Timestamp createdAt) {
+        super(createdAt); // for data read from DB
+        this.username = username;
+        this.passwordHash = passwordHash;
+        this.role = role;
+        this.email = email;
+    }
 
     public String getUsername() {
         return username;
@@ -31,5 +38,9 @@ public class User extends BaseEntity{
 
     public String getEmail() {
         return email;
+    }
+    
+    public Timestamp getUpdatedAt() {
+        return createdAt;
     }
 }
