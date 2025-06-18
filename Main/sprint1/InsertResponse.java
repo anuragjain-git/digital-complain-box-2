@@ -91,6 +91,18 @@ public class InsertResponse {
         }
         return "";
     }
+    
+    private String fetchComplaintStatus(Connection conn, String query, int param) throws SQLException {
+        try (PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, param);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("status");
+                }
+            }
+        }
+        return "";
+    }
 
     public void insertResponse(Response response) {
     	Scanner sc = new Scanner(System.in);
@@ -149,6 +161,14 @@ public class InsertResponse {
                     userIdUser, deptId, categoryId);
             if (complaintId == -1) {
                 System.out.println("Complaint not found for provided user/department/category.");
+                return;
+            }
+            
+            String complaintStatus = fetchComplaintStatus(conn,
+            		"SELECT status FROM complaints WHERE complaint_id = ?",
+            		complaintId);
+            if(complaintStatus.toLowerCase() == "closed") {
+            	System.out.println("Complaint has been closed.");
                 return;
             }
 
