@@ -1,0 +1,246 @@
+package sprint1;
+
+import java.sql.*;
+import java.util.NoSuchElementException;
+import java.util.Scanner;
+
+public class InsertComplaint {
+	
+	public void printComplaintList() {
+	    CollectionsStore.complaintList.clear(); // Avoid duplicates on multiple calls
+
+	    String sql = "SELECT * FROM complaints";
+	    try (Connection conn = DBConnection.getConnection();
+	         Statement stmt = conn.createStatement();
+	         ResultSet rs = stmt.executeQuery(sql)) {
+
+	        while (rs.next()) {
+	            Complaint c = new Complaint(
+	                rs.getString("title"),
+	                rs.getString("description"),
+	                rs.getTimestamp("created_at"),
+	                rs.getTimestamp("updated_at")
+	            );
+	            CollectionsStore.complaintList.add(c);
+	        }
+
+	    } catch (SQLException e) {
+	        e.printStackTrace();
+	    }
+
+	    System.out.println("\n--- Complaints in Memory (Loaded from DB) ---");
+	    if (CollectionsStore.complaintList.isEmpty()) {
+	        System.out.println("No complaints found.");
+	    } else {
+	        for (Complaint c : CollectionsStore.complaintList) {
+	            System.out.println("Title: " + c.getTitle());
+	            System.out.println("Description: " + c.getDescription());
+	            System.out.println("Status: " + c.getStatus());
+	            System.out.println("Created At: " + c.getCreatedAt());
+	            System.out.println("Updated At: " + c.getUpdatedAt());
+	            System.out.println("------------------------");
+	        }
+	    }
+	}
+
+
+    public int fetchId(Connection conn, String query, String param) throws SQLException {
+        try (PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setString(1, param);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        }
+        return -1;
+    }
+
+    public void insertComplaint(Complaint complaint) {
+        String sql = "INSERT INTO complaints (user_id, dept_id, category_id, title, description) VALUES (?, ?, ?, ?, ?)";
+        try (Connection conn = DBConnection.getConnection();
+             Scanner sc = new Scanner(System.in)) {
+
+            System.out.print("Enter username: ");
+            String username = sc.nextLine();
+            int userId = fetchId(conn, "SELECT user_id FROM users WHERE username = ?", username);
+            if (userId == -1) {
+                System.out.println("User not found!");
+                return;
+            }
+
+            System.out.print("Enter department name: ");
+            String deptname = sc.nextLine();
+            int deptId = fetchId(conn, "SELECT dept_id FROM departments WHERE dept_name = ?", deptname);
+            if (deptId == -1) {
+                System.out.println("Department not found!");
+                return;
+            }
+
+            System.out.print("Select a category name: ");
+            String categoryname = sc.nextLine();
+            int categoryId = fetchId(conn, "SELECT category_id FROM categories WHERE category_name = ?", categoryname);
+            if (categoryId == -1) {
+                System.out.println("Category not found!");
+                return;
+            }
+
+            // Check for duplicate complaint
+            String checkDuplicateQuery = "SELECT 1 FROM complaints WHERE user_id = ? AND dept_id = ? AND category_id = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(checkDuplicateQuery)) {
+                stmt.setInt(1, userId);
+                stmt.setInt(2, deptId);
+                stmt.setInt(3, categoryId);
+
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        System.out.println("Complaint already exists for this username, department, and category.");
+                        return;
+                    }
+                }
+            }
+
+            // Insert complaint
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            stmt.setInt(1, userId);
+            stmt.setInt(2, deptId);
+            stmt.setInt(3, categoryId);
+            stmt.setString(4, complaint.getTitle());
+            stmt.setString(5, complaint.getDescription());
+
+            stmt.executeUpdate();
+            System.out.println("Complaint inserted successfully!");
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void readComplaints() {
+        String sql = "SELECT * FROM complaints";
+        try (Connection conn = DBConnection.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            System.out.println("\n=== Complaints List ===");
+            while (rs.next()) {
+                System.out.println("ID: " + rs.getInt("complaint_id"));
+                System.out.println("Title: " + rs.getString("title"));
+                System.out.println("Status: " + rs.getString("status"));
+                System.out.println("Created At: " + rs.getTimestamp("created_at"));
+                System.out.println("----------------------------");
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void updateComplaintStatus() {
+        try (Connection conn = DBConnection.getConnection();
+             Scanner sc = new Scanner(System.in)) {
+
+            System.out.print("Enter Complaint ID to update: ");
+            int id = sc.nextInt();
+            sc.nextLine(); // Flush leftover newline
+
+            System.out.print("Enter new status (e.g. OPEN, Resolved, Closed): ");
+            String status = sc.nextLine();
+
+            String sql = "UPDATE complaints SET status = ? WHERE complaint_id = ?";
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            stmt.setString(1, status);
+            stmt.setInt(2, id);
+
+            int rows = stmt.executeUpdate();
+            System.out.println("Rows updated: " + rows);
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void deleteComplaint() {
+        try (Connection conn = DBConnection.getConnection();
+             Scanner sc = new Scanner(System.in)) {
+
+            System.out.print("Enter Complaint ID to delete: ");
+            int id = sc.nextInt();
+
+            String sql = "DELETE FROM complaints WHERE complaint_id = ?";
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            stmt.setInt(1, id);
+
+            int rows = stmt.executeUpdate();
+            System.out.println("Rows deleted: " + rows);
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void main(String[] args) {
+        InsertComplaint app = new InsertComplaint();
+        Scanner sc = new Scanner(System.in);
+
+        while (true) {
+            try {
+                System.out.println("\n--- Complaint CRUD Menu ---");
+                System.out.println("1. Insert Complaint");
+                System.out.println("2. Read All Complaints");
+                System.out.println("3. Update Complaint Status");
+                System.out.println("4. Delete Complaint");
+                System.out.println("5. Exit");
+                System.out.println("6. Print Complain List");
+                System.out.print("Choose option: ");
+
+                if (!sc.hasNextInt()) {
+                    System.out.println("Invalid input. Please enter a number.");
+                    sc.next(); // Skip invalid
+                    continue;
+                }
+
+                int choice = sc.nextInt();
+                sc.nextLine(); // flush newline
+
+                switch (choice) {
+                    case 1:
+                    	System.out.print("Enter title: ");
+                    	String title = sc.nextLine();
+                    	System.out.print("Enter description: ");
+                    	String description = sc.nextLine();
+                        Complaint complaint = new Complaint(
+                        		title,
+                        		description
+                        );
+                        app.insertComplaint(complaint);
+                        break;
+                    case 2:
+                        app.readComplaints();
+                        break;
+                    case 3:
+                        app.updateComplaintStatus();
+                        break;
+                    case 4:
+                        app.deleteComplaint();
+                        break;
+                    case 5:
+                        System.out.println("Exiting...");
+                        return; 
+                    case 6:
+                        app.printComplaintList();
+                        break;
+                    default:
+                        System.out.println("Invalid option. Try again.");
+                }
+
+            } catch (NoSuchElementException e) {
+                System.out.println("No more input. Exiting safely...");
+                break;
+            } catch (Exception e) {
+                System.out.println("Error: " + e.getMessage());
+                if (sc.hasNextLine()) sc.nextLine(); // Recover from bad input
+            }
+        }
+    }
+}
